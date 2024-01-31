@@ -1,0 +1,29 @@
+.node__root > circle {
+  fill: red;
+}
+
+.node__branch > circle {
+  fill: yellow;
+}
+
+.node__leaf > circle {
+  fill: green;
+  /* r: 30; */
+}
+/* .rd3t-link {
+  fill: red;
+  opacity: 0;
+} */
+
+/* .link__to-branch {
+  fill: red;
+  opacity: 0;
+} */
+
+.tree-container .link-quests {
+  stroke: red;
+  stroke-width: 5px;
+}
+.tree-container .rd3t-node {
+  cursor: grab;
+}
