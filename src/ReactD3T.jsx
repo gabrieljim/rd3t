@@ -88,56 +88,15 @@ const containerStyles = {
   backgroundColor: "gray",
 };
 
-const useCenteredTree = (defaultTranslate = { x: 0, y: 0 }) => {
-  const [translate, setTranslate] = useState(defaultTranslate);
-  const containerRef = useCallback((containerElem) => {
-    if (containerElem !== null) {
-      const { width, height } = containerElem.getBoundingClientRect();
-      setTranslate({ x: width / 2, y: height / 3 });
-    }
-  }, []);
-
-  return [translate, containerRef];
-};
-
 const RenderObjectCard = (props) => {
   const { foreignObjectProps, nodeDatum } = props;
-  // const [translate, containerRef] = useCenteredTree();
-  // console.log(translate);
-  const miRef = useRef({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const nodo = miRef.current;
-    if (nodo) {
-      const rect = nodo.getBoundingClientRect();
-      console.log(rect);
-      // const translateX = -350;
-      // const translateY = 420;
-      // const translateX = 490;
-      // const translateY = 280;
-      // Tamaño del nodo
-      // const nodoAncho = 150;
-      // const nodoAltura = 100;
-
-      // Calcula las coordenadas x e y para centrar el nodo en el contenedor
-      // const x = window.innerWidth / 2;
-      // const y = window.innerHeight / 2;
-
-      // console.log("Coordenada X para centrar:", x);
-      // console.log("Coordenada Y para centrar:", y);
-
-      // console.log("Posición X:", rect.x);
-      // console.log("Posición Y:", rect.y);
-      // console.log("ancho", rect.width);
-      // console.log("alto", rect.height);
-    }
-  }, [miRef]);
   return (
     <>
       <foreignObject
-        ref={miRef}
         {...foreignObjectProps}
         style={{ overflow: "visible" }}
+        data-node-name={nodeDatum.name} // keep track of each node using the name
       >
         {nodeDatum.attributes.level >= 1 && (
           <>
@@ -173,7 +132,10 @@ const renderForeignObjectNode = ({
   );
 };
 const ReactD3T = ({ data }) => {
-  const [translate, containerRef] = useCenteredTree();
+  const [searchValue, setSearchValue] = useState("");
+  const [translate, setTranslate] = useState();
+  const [zoom, setZoom] = useState(1);
+  const containerRef = useRef();
   const nodeSize = { x: 100, y: 100 };
   const foreignObjectProps = {
     width: nodeSize.x,
@@ -181,21 +143,64 @@ const ReactD3T = ({ data }) => {
     x: -50,
     y: -40,
   };
-  // console.log(foreignObjectProps);
+
+  const searchAndZoomToNode = (nodeName) => {
+    // each node has this data-node-name attribute set on creation with the name of the quest
+    // TODO: match regex for name instead of needing to type it exactly
+    const nodeElement = document.querySelector(
+      `[data-node-name="${nodeName}"]`
+    );
+
+    if (!nodeElement) return;
+
+    // get the coordinates for the node
+    const nodeRect = nodeElement.getBoundingClientRect();
+
+    const translateX = -nodeRect.left; // how much it moves from the left
+    const translateY = -nodeRect.top; // how much it moves from the top
+    console.log("node coordinates", nodeRect.left, nodeRect.top);
+    console.log("setting translate to ", translateX, translateY);
+
+    // we cant just set the new coordinates because they are relative to the current position
+    // so we need to add the new coordinates to the current ones
+    // TODO: get this centered instead of top left
+    setTranslate((prevState) => ({
+      x: prevState.x + translateX,
+      y: prevState.y + translateY,
+    }));
+
+    // TODO: figure out how to zoom in (maybe simply using setZoom works after the container is centered)
+  };
+
+  const resetTranslate = () => {
+    setTranslate({ x: 0, y: 0 });
+  };
 
   return (
-    <div className="tree-container" style={containerStyles}>
+    <div ref={containerRef} className="tree-container" style={containerStyles}>
+      <input type="text" onChange={(e) => setSearchValue(e.target.value)} />
+      <button onClick={() => searchAndZoomToNode(searchValue)}>Search</button>
+      <button onClick={() => resetTranslate()}>Reset</button>
       <Tree
         data={data}
         orientation="vertical"
-        // translate={{ x: 657.5, y: 459.5 }}
-        // translate={{ x: 490, y: 280 }}
-        zoom={2}
+        zoom={zoom}
+        zoomable
+
+        // bindZoomListener: this shit isnt documented, had to look in the library's code (ctrl+click <Tree)
+        // node_modules/react-d3-tree/lib/types/Tree/index.d.ts 
+        bindZoomListener 
         scaleExtent={{ min: 0.1, max: 2 }}
         separation={{ siblings: 1, nonSiblings: 2 }}
+        onUpdate={(upd) => {
+          setTranslate(upd.translate);
+          setZoom(upd.zoom);
+        }}
         collapsible={false}
         pathClassFunc={() => "link-quests"}
         pathFunc="step"
+        translate={translate}
+        data-name="tree"
         renderCustomNodeElement={(props) =>
           renderForeignObjectNode({ ...props, foreignObjectProps })
         }
